@@ -37,3 +37,8 @@ git checkout main
 git pull
 git merge new_branch
 ```
+
+Delete your branch
+```
+git push origin --delete new_branch
+```
