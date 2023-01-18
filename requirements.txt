@@ -1,0 +1,3 @@
+# From Chris Bridge at MGH
+pycrumbs @ git+https://github.com/CPBridge/pycrumbs@6dd8c7157675a88c2468b18e38cb2bbdd539ff27
+smmap==5.0.0
