@@ -2,11 +2,16 @@ import os, shutil, pdb
 import pandas as pd
 from pathlib import Path
 from pycrumbs import tracked
+from dotenv import load_dotenv
+load_dotenv()
 
-raw_data = "/data/Image-Comparator/RIM-ONE_database_r1"
-destination = '/projects/Image-Comparator/preprocessed/RIM-ONE_database_r1/'
+DATA_DIR=os.environ["DATA_DIR"]
+PROJECTS_DIR=os.environ["PROJECTS_DIR"]
 
-@tracked(literal_directory=Path('/projects/Image-Comparator/preprocessed/RIM-ONE_database_r1/'))
+raw_data = os.path.join(DATA_DIR,"RIM-ONE_database_r1")
+destination = os.path.join(PROJECTS_DIR,"preprocessed/RIM-ONE_database_r1/")
+
+@tracked(literal_directory=Path(destination))
 def identify_desired_images(raw_data: str = raw_data):
     file_ext_desired = '.bmp'
     partial_file_name_to_omit = '-exp'
@@ -19,7 +24,7 @@ def identify_desired_images(raw_data: str = raw_data):
         # move files to destination
         for file in files_to_keep:
             csv_tuples.append((os.path.join(raw_data, folder, file), folder))
-            # shutil.copy(os.path.join(raw_data, folder, file), os.path.join(destination, file))
+            shutil.copy(os.path.join(raw_data, folder, file), os.path.join(destination, file))
     # create image_key.csv
     image_names = [os.path.basename(i[0]) for i in csv_tuples]
     image_paths = [i[0] for i in csv_tuples]
