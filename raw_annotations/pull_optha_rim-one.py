@@ -26,20 +26,27 @@ c = couch_utils(DNS, DB_PORT, IMAGES_DB, DB_ADMIN_USER, DB_ADMIN_PASS, ADMIN_PAR
 OUT = os.path.join(PROJECTS_DIR, "raw_annotations")
 
 # Get Images #
-images = c.get_images(key="opthamology_rim-one")
+# 01_03_2023 - maybe
+# images = c.get_images(key="opthamology_rim-one")
+# 03_24_2023 - maybe
+images = c.get_images(key="saif_registrations")
 # images.columns
 # Index(['_id', '_rev', 'image_path', 'image_folder', 'origin', 'id', 'type', 'imageSetName', 'timeAdded'], dtype='object')
 
 images['app_image_id'] = images['_id']
-images['app_image_id'] = images['app_image_id'].astype(int)
+# images['app_image_id'] = images['app_image_id'].astype(int)
+images['origin']
 images.rename(columns={'origin':'image_name'}, inplace=True)
-images.drop(columns=['_id', '_rev', 'type', 'timeAdded', 'id'], inplace=True)
+images['image_name']
+images.columns
+images.drop(columns=['_id', '_rev', 'type', 'timeAdded'], inplace=True)
 # images.columns
 # Index(['image_path', 'image_folder', 'image_name', 'imageSetName', 'app_image_id'], dtype='object')
 
 @tracked(literal_directory=Path(OUT))
 def write_images_key():
-    images.to_csv(os.path.join(OUT, "images.csv"), index=None)
+    # images.to_csv(os.path.join(OUT, "opthamology_rim-one.csv"), index=None)
+    images.to_csv(os.path.join(OUT, "saif_registrations_images.csv"), index=None)
 
 write_images_key()
 
@@ -141,5 +148,34 @@ def write_compare_results():
     for df in annotator_results.keys():
         annotator_results[df][header].to_csv(
             os.path.join(OUT, f"{df}_01_03_2023.csv"), index=None)
+
+
+# Flicker Results #
+Chris_flicker_results = c.get_flicker_results("ClarkQTIM", "saif_registrations-flicker-0")
+Chris_flicker_results.columns
+# Index(['user', 'app', 'taskid', 'list_name', '_id', 'Choose Single Class',
+#        'Is the registration adequate?', 'image 1 opacity', 'image 2 opacity',
+#        'fade between images'],
+#       dtype='object')
+# Chris_flicker_results['app'].iloc[0]
+# Chris_flicker_results['taskid'].iloc[0]
+# Chris_flicker_results['list_name'].iloc[0]
+# Chris_flicker_results['_id'].iloc[0]
+Chris_flicker_results['_id'].iloc[0]
+Chris_flicker_results['_id'].iloc[1]
+Chris_flicker_results['_id'].iloc[2]
+Chris_flicker_results['_id'].iloc[3]
+Chris_flicker_results['_id'] = Chris_flicker_results.apply(lambda x: x['_id'].replace(x['taskid']+'-result-image1_',''), axis=1)
+Chris_flicker_results['_id'] = Chris_flicker_results.apply(lambda x: x['_id'].replace('-image2_',''), axis=1)
+image_set = Chris_flicker_results['list_name'].iloc[0].replace('-flicker-0','') + "_"
+Chris_flicker_results[['delete_me','image_1_id','image_2_id']] = Chris_flicker_results['_id'].str.split(image_set, expand=True)
+Chris_flicker_results.drop(columns=["delete_me", "_id"], inplace=True)
+Chris_flicker_results.columns
+# Index(['user', 'app', 'taskid', 'list_name', 'Choose Single Class',
+#        'Is the registration adequate?', 'image 1 opacity', 'image 2 opacity',
+#        'fade between images', 'image_1_id', 'image_2_id'],
+#       dtype='object')
+
+Chris_flicker_results.to_csv(os.path.join(OUT, f"Chris_flicker_results_03_24_2023.csv"), index=None)
 
 write_compare_results()

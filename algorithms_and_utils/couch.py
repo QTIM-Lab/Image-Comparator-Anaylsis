@@ -47,9 +47,9 @@ class couch_utils:
         base = "http://{}:{}/{}".format(self.DNS, self.DB_PORT, self.IMAGES_DB)
         # view = f"_design/basic_views/_view/imageSet2ImageId_pull?key=\"{key}\"" # Ikbeom
         if key is None:
-            view = f"_design/basic_views/_view/imageSet2ImageId"
+            view = f"_design/images/_view/imagesBySet"
         else:
-            view = f"_design/basic_views/_view/imageSet2ImageId?key=\"{key}\""
+            view = f"_design/images/_view/imagesBySet?key=\"{key}\""
         url = f"{base}/{view}"
         print(url)
         # pdb.set_trace()
@@ -252,6 +252,46 @@ class couch_utils:
             Data.loc[:, 'image'] = Data['image'].str.replace('image_', '')
 
         return Data
+
+    def get_flicker_results(self, username, list_name, json_data=False, app=""):
+        base = "http://{}:{}/{}".format(self.DNS, self.DB_PORT, self.IMAGES_DB)
+        # view = f"_design/basic_views/_view/resultsClassify_userList?key=[\"{username}\", \"{list_name}\"]"
+        view = f"_design/flickerApp/_view/results?key=[\"{username}\", \"{list_name}\"]"
+        url = f"{base}/{view}"
+        response = self.check_if_admin_party_then_make_request(url)
+        results = json.loads(response.content.decode('utf-8'))
+        base_header = ['user','app','list_name','taskid']
+        results_df = pd.DataFrame()
+        for row in results['rows']:
+            # pdb.set_trace()
+            if row['value']['radio_button_categories']:
+                radio_button_results = []
+                for radio_button in row['value']['radio_button_categories']:
+                    if radio_button['category_id'] not in base_header:
+                        base_header.append(radio_button['category_id'])
+                    radio_button_results.append((radio_button['category_id'], radio_button['selected']))
+            if row['value']['slider_input_categories']:
+                slider_button_results = []
+                for slider_input in row['value']['slider_input_categories']:
+                    for image_opacity in slider_input['slider_inputs']:
+                        if image_opacity['slider_input_id'] not in base_header:
+                            base_header.append(image_opacity['slider_input_id'])
+                        slider_button_results.append((image_opacity['slider_input_id'], image_opacity['value']))
+            row_results = radio_button_results + slider_button_results
+            row_results_dict = {k:v for k,v in row_results}
+            row_dict = {'user':[row['value']['user']],
+                        'app':[row['value']['app']],
+                        'taskid':[row['value']['taskid']],
+                        'list_name':[row['value']['list_name']],
+                        '_id':[row['value']['_id']],
+                        }
+            for result_key in row_results_dict.keys():
+                row_dict[result_key] = [row_results_dict[result_key]]
+            row_df = pd.DataFrame(row_dict)
+            results_df = pd.concat([results_df, row_df])
+        # pdb.set_trace()
+        return results_df
+        
 
     def get_view(self, view, json_data=False):
         base = "http://{}:{}/{}".format(self.DNS, self.DB_PORT, self.IMAGES_DB)

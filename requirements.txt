@@ -1,5 +1,5 @@
 # From Chris Bridge at MGH
-pycrumbs @ git+https://github.com/CPBridge/pycrumbs@40390ba92e127325f7b2ebef2bc97d521334ccb3
+git+https://github.com/CPBridge/pycrumbs@40390ba92e127325f7b2ebef2bc97d521334ccb3
 smmap==5.0.0
 pandas
 python-dotenv
