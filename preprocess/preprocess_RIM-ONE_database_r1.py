@@ -9,7 +9,7 @@ INPUT=os.environ["DATA_DIR"]
 OUTPUT=os.environ["PROJECT_DIR"]
 
 # @tracked(literal_directory=Path(OUTPUT))
-def identify_desired_images(INPUT: str = INPUT):
+def identify_desired_images(INPUT: str = INPUT, copy_images=True):
     file_ext_desired = '.bmp'
     partial_file_name_to_omit = '-exp'
     folder_classes = ['Normal', 'Early', 'Moderate', 'Deep']
@@ -23,14 +23,15 @@ def identify_desired_images(INPUT: str = INPUT):
             csv_tuples.append((os.path.join(INPUT, folder, file), folder))
             if not os.path.exists(os.path.join(OUTPUT, folder)):
                 os.mkdir(os.path.join(OUTPUT, folder))
-            shutil.copy(os.path.join(INPUT, folder, file), os.path.join(OUTPUT, folder, file))
+            if copy_images == True:
+                shutil.copy(os.path.join(INPUT, folder, file), os.path.join(OUTPUT, folder, file))
     # create image_key.csv
     image_names = [os.path.basename(i[0]) for i in csv_tuples]
-    orig_image_paths = [i[0] for i in csv_tuples]
+    image_path_orig = [i[0] for i in csv_tuples]
     image_folders = [i[1] for i in csv_tuples]
-    image_relative_paths = [i.replace(INPUT+"/", "") for i in orig_image_paths]
+    image_relative_paths = [i.replace(INPUT+"/", "") for i in image_path_orig]
     images_csv = pd.DataFrame({"image": image_names,
-                               "orig_image_path": orig_image_paths,
+                               "image_path_orig": image_path_orig,
                                "relative_path": image_relative_paths,
                                "image_classification": image_folders,
                                })
@@ -39,4 +40,4 @@ def identify_desired_images(INPUT: str = INPUT):
     # images_csv = images_csv.sample(frac=1)
     images_csv.to_csv(os.path.join(OUTPUT, "image_key.csv"), index=None)
 
-identify_desired_images()
+identify_desired_images(INPUT, copy_images=False)
