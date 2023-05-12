@@ -15,7 +15,7 @@ destination = os.path.join(PROJECTS_DIR,"preprocessed/RIM-ONE_database_r1/")
 def identify_desired_images(raw_data: str = raw_data):
     file_ext_desired = '.bmp'
     partial_file_name_to_omit = '-exp'
-    folder_classes = ['Normal', 'Early','Moderate', 'Deep']
+    folder_classes = ['Normal', 'Early', 'Moderate', 'Deep']
     csv_tuples = []
     # get list of files to move
     for folder in folder_classes:
