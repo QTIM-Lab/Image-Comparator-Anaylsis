@@ -13,6 +13,26 @@ pdm init # choose venv we created and tell it to import requirements.txt
 
 # remove venv
 pdm venv remove image-comparator-analysis
+
+eval $(pdm venv activate image-comparator-analysis)
+
+# Add packages
+pdm add pandas
+pdm add request
+pdm add python-dotenv
+pdm add matplotlib
+pdm add networkx
+pdm add scikit-learn
+pdm remove sklearn
+
+
+# "pycrumbs @ git+https://github.com/CPBridge/pycrumbs@40390ba92e127325f7b2ebef2bc97d521334ccb3",
+# "smmap==5.0.0",
+# "pandas>=1.5.3",
+# "python-dotenv>=1.0.0",
+# "requests>=2.28.2",
+# "setuptools>=67.6.0",
+# "choix>=0.3.5",
 ```
 
 ## Git review:
