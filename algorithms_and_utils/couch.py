@@ -76,97 +76,81 @@ class couch_utils:
 
         return Data
 
-    def get_classification_results(self, username, list_name, json_data=False, app=""):
+    def get_classify_results(self, username, list_name, json_data=False, app="", v1=False):
         base = "http://{}:{}/{}".format(self.DNS, self.DB_PORT, self.IMAGES_DB)
         # view = f"_design/basic_views/_view/resultsClassify_userList?key=[\"{username}\", \"{list_name}\"]"
-        view = f"_design/basic_views/_view/resultsClassify?key=[\"{username}\", \"{list_name}\"]"
+        # view = f"_design/basic_views/_view/resultsClassify?key=[\"{username}\", \"{list_name}\"]"
+        view = f"_design/classifyApp/_view/resultsByUserAndListName?key=[\"{username}\", \"{list_name}\"]"
         url = f"{base}/{view}"
         response = self.check_if_admin_party_then_make_request(url)
         results = json.loads(response.content.decode('utf-8'))
-        if json_data:
-            # raw couchdb results
-            Data = results
-        elif app == "FGS":
-            rows = [row["value"] for row in results["rows"]]
-            diagnosis_header = [i for i in rows[0] if i.find(
-                'diagnosis_') != -1 or i.find('diagnoisis_') != -1]  # I had a spelling error in the app
-            diagnosis_header
-            header = ["_id", "_rev", "user", "type", "date", "image"] + \
-                diagnosis_header + ["task", "task_list_name", "task_idx"]
-            row_data = []
-            for row in rows:
-                row_values = []
-                for col in header:
-                    row_values.append(row[col])
-                row_data.append(row_values)
-            Data = pd.DataFrame(rows, columns=header)
-        elif app == "MIDRC":
-            Data = pd.DataFrame()
-            for row in results["rows"]:
-                row_values = row['value']
-                row_values_d = {k: [row_values[k]] for k in row_values.keys()}
-                # header = list(row_values_d.keys()) + ['reject_justification'] # might not need
-                if 'reject_justification' in row['value'].keys():
-                    row_values_d['reject_justification'] = [
-                        row_values_d['reject_justification']]
-                else:
-                    row_values_d['reject_justification'] = [np.nan]
-                Data = pd.concat([Data, pd.DataFrame(row_values_d)], axis=0)
-        else:
-            # pdb.set_trace()
-            rows = [row["value"] for row in results["rows"]]
-            header = [
-                "_id",
-                "_rev",
-                "user",
-                "type",
-                "date",
-                "image",  # if there are errors check if this comes through as image0 not image
-                "diagnosis",
-                "justification",
-                "task",
-                "task_list_name",
-                "task_idx"]
-            Data = pd.DataFrame(rows, columns=header)
         # pdb.set_trace()
-        # Data.loc[:,'imageid'] = Data['image'].str.replace(f'http://{self.DNS}:{self.DB_PORT}/{self.IMAGES_DB}/','')
+        if v1:
+            results_df = pd.DataFrame([row['value'] for row in results['rows']])
+        else:
+            base_header = ['user','app','list_name','taskid']
+            results_df = pd.DataFrame()
+            for row in results['rows']:
+                # pdb.set_trace()
+                if row['value']['text_field_categories']:
+                    text_field_results = []
+                    for text_field_input in row['value']['text_field_categories']:
+                        for text_field in text_field_input['text_fields']:
+                            if text_field['text_field_id'] not in base_header:
+                                base_header.append(text_field['text_field_id'])
+                            text_field_results.append((text_field['text_field_id'], text_field['message']))
+                row_results = text_field_results
+                row_results_dict = {k:v for k,v in row_results}
+                row_dict = {'user':[row['value']['user']],
+                            'app':[row['value']['app']],
+                            'taskid':[row['value']['taskid']],
+                            'list_name':[row['value']['list_name']],
+                            '_id':[row['value']['_id']],
+                            }
+                for result_key in row_results_dict.keys():
+                    row_dict[result_key] = [row_results_dict[result_key]]
+                row_df = pd.DataFrame(row_dict)
+                results_df = pd.concat([results_df, row_df])
+        return results_df
+    
 
-        return Data
 
-    def get_compare_results(self, username, list_name, json_data=False):
+    def get_compare_results(self, username, list_name, json_data=False, app="", v1=False):
         base = "http://{}:{}/{}".format(self.DNS, self.DB_PORT, self.IMAGES_DB)
-        view = f"_design/basic_views/_view/resultsCompare?key=[\"{username}\", \"{list_name}\"]"
+        if v1:
+            view = f"_design/basic_views/_view/resultsCompare?key=[\"{username}\", \"{list_name}\"]"
+        else:
+            view = f"_design/compareApp/_view/resultsByUserAndListName?key=[\"{username}\", \"{list_name}\"]"
         url = f"{base}/{view}"
-        # pdb.set_trace()
         response = self.check_if_admin_party_then_make_request(url)
         results = json.loads(response.content.decode('utf-8'))
-        if json_data:
-            # raw couchdb results
-            Data = results
-            # pdb.set_trace()
+        # pdb.set_trace()
+        if v1:
+            results_df = pd.DataFrame([row['value'] for row in results['rows']])
         else:
-            rows = [row["value"] for row in results["rows"]]
-            header = [
-                "_id",
-                "_rev",
-                "user",
-                "type",
-                "date",
-                "image0",
-                "image1",
-                "winner",
-                "justification",
-                "task",
-                "task_list_name",
-                "task_idx"]
-            Data = pd.DataFrame(rows, columns=header)
-            # pdb.set_trace()
-            Data.loc[:, 'image0'] = Data['image0'].str.replace(
-                f'http://{self.DNS}:{self.DB_PORT}/{self.IMAGES_DB}/', '')
-            Data.loc[:, 'image1'] = Data['image1'].str.replace(
-                f'http://{self.DNS}:{self.DB_PORT}/{self.IMAGES_DB}/', '')
-
-        return Data
+            base_header = ['user','app','list_name','taskid']
+            results_df = pd.DataFrame()
+            for row in results['rows']:
+                # pdb.set_trace()
+                if row['value']['radio_button_categories']:
+                    radio_button_results = []
+                    for radio_button in row['value']['radio_button_categories']:
+                        if radio_button['category_id'] not in base_header:
+                            base_header.append(radio_button['category_id'])
+                        radio_button_results.append((radio_button['category_id'], radio_button['selected']))
+                row_results = radio_button_results
+                row_results_dict = {k:v for k,v in row_results}
+                row_dict = {'user':[row['value']['user']],
+                            'app':[row['value']['app']],
+                            'taskid':[row['value']['taskid']],
+                            'list_name':[row['value']['list_name']],
+                            '_id':[row['value']['_id']],
+                            }
+                for result_key in row_results_dict.keys():
+                    row_dict[result_key] = [row_results_dict[result_key]]
+                row_df = pd.DataFrame(row_dict)
+                results_df = pd.concat([results_df, row_df])
+        return results_df
 
     def get_frontal_lateral_results(self, username, list_name, json_data=False):
         base = "http://{}:{}/{}".format(self.DNS, self.DB_PORT, self.IMAGES_DB)
@@ -265,10 +249,11 @@ class couch_utils:
         if v1:
             view = f"_design/basic_views/_view/resultsFlicker?key=[\"{username}\", \"{list_name}\"]"
         else:
-            view = f"_design/flickerApp/_view/results?key=[\"{username}\", \"{list_name}\"]"
+            view = f"_design/flickerApp/_view/resultsByUserAndListName?key=[\"{username}\", \"{list_name}\"]"
         url = f"{base}/{view}"
         response = self.check_if_admin_party_then_make_request(url)
         results = json.loads(response.content.decode('utf-8'))
+        # pdb.set_trace()
         if v1:
             results_df = pd.DataFrame([row['value'] for row in results['rows']])
         else:

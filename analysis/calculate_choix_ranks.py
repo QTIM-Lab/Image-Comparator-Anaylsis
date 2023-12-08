@@ -21,6 +21,7 @@ images = pd.read_csv(os.path.join('/projects/Image-Comparator-Analysis/raw_annot
 images.app_image_id.max() # 158
 images.app_image_id.min() # 1
 
+
 def make_data_pairs(row, min_id):
     # 1 - image0 won
     # 0 - image1 won
@@ -34,28 +35,37 @@ def make_data_pairs(row, min_id):
         right = row['image0']
     elif row['winner'] == -1 or row['winner'] == -2:
         left = 'tie'
-        right= 'tie'
-        return(left, right)
-    # return(left, right)
-    # if int(right)-min_id == -1:
-    #     pdb.set_trace()
+        right = 'tie'
+        return (left, right)
     return (int(left)-min_id, int(right)-min_id)
+
 
 results_Lazcano = pd.read_csv(os.path.join(WKDIR, "Lazcano_compare_results_01_03_2023.csv"))
 results_Alryalat = pd.read_csv(os.path.join(WKDIR, "Alryalat_compare_results_01_03_2023.csv"))
 results_Seibold = pd.read_csv(os.path.join(WKDIR, "Seibold_compare_results_01_03_2023.csv"))
 results_Malik = pd.read_csv(os.path.join(WKDIR, "Malik_compare_results_01_03_2023.csv"))
 results_Ittoop = pd.read_csv(os.path.join(WKDIR, "Ittoop_compare_results_01_03_2023.csv"))
+results_Combined = pd.concat([results_Lazcano,results_Alryalat,results_Seibold, results_Malik, results_Ittoop], axis=0)
+results_Combined['user'] = 'Combined'
+
+# QA
+# results_Lazcano[pd.isna(results_Lazcano['user'])]
+# results_Alryalat[pd.isna(results_Alryalat['user'])]
+# results_Seibold[pd.isna(results_Seibold['user'])]
+# results_Malik[pd.isna(results_Malik['user'])]
+# results_Ittoop[pd.isna(results_Ittoop['user'])]
+# results_Combined[pd.isna(results_Combined['user'])]
 
 
-# .sort_values('date')[['user','origin_0','origin_1','image0','image1','date']] # To view
 results = {
            'Lazcano':results_Lazcano,
            'Alryalat':results_Alryalat,
            'Seibold':results_Seibold,
            'Malik':results_Malik,
            'Ittoop':results_Ittoop,
+           'Combined': results_Combined
            }
+
 
 def create_fake_ids(image_ids):
     # print("create_fake_ids: \n"); pdb.set_trace()
@@ -66,24 +76,34 @@ def create_fake_ids(image_ids):
     image_ids.drop(columns=['index'], inplace=True)
     return image_ids 
 
-temp_params = {'A': [], 'M': [],'I': [], 'L': []} # For debugging
+
+temp_params = {'A': [], 'M': [],'I': [], 'L': [], 'C': []} # For debugging
 def compute_ranks(df, name):
     # Create Fake IDS
+    # pdb.set_trace()
     image_ids = set(np.concatenate((df.image0.unique(),df.image1.unique())))
     fake_ids = create_fake_ids(image_ids)
     min_id = min(fake_ids['fake_ids']) # adjusted image_ids min_id
+    # pdb.set_trace()
     # image 0
     fake_df = pd.merge(fake_ids, df[['image0','image1','winner']], left_on="image_ids", right_on="image0")
     fake_df.rename(columns={'fake_ids':'image0_fake'}, inplace=True)
     fake_df.drop('image_ids', axis=1, inplace=True)
+    # pdb.set_trace()
     # image 1
     fake_df = pd.merge(fake_df, fake_ids, left_on="image1", right_on="image_ids")
     fake_df.rename(columns={'fake_ids':'image1_fake'}, inplace=True)
     fake_df.drop('image_ids', axis=1, inplace=True)
-    df['data_pairs'] = fake_df[['image0_fake','image1_fake','winner']].rename(columns={'image0_fake':'image0','image1_fake':'image1'}).apply(lambda x: make_data_pairs(x, min_id), axis=1)
-    n_items = len(image_ids)
+    # pdb.set_trace()
+    fake_df[fake_df['winner'] == -1]
+    # df[pd.isna(df['user'])]
+    pairs = fake_df[['image0_fake','image1_fake','winner']].rename(columns={'image0_fake':'image0','image1_fake':'image1'}).apply(lambda x: make_data_pairs(x, min_id), axis=1)
+    len([p for p in pairs if p[0] == 'tie'])
+    # df.drop(columns='data_pairs', inplace=True)
+    df['data_pairs'] = pairs.to_list()
+    
     # Make choix ranks
-    # pairs have to be fed in winner first: (winner, loser)...so ties don't exist, maybe we can pass in (winner,loser) and (loser,winner)
+    n_items = len(image_ids)
     non_ties = df[df['data_pairs'].str[0] != 'tie'] # removes some ids so total count wont be 596
     data = non_ties['data_pairs'].to_list()
     r_data = random.sample(data, len(data))
@@ -98,6 +118,8 @@ def compute_ranks(df, name):
         temp_params['I'].append(ranks_low_to_high)
     elif name == 'Lazcano':
         temp_params['L'].append(ranks_low_to_high)
+    elif name == 'Combined':
+        temp_params['C'].append(ranks_low_to_high)
     ################################ Fill Temp Params ##########################################
     # Double checked on 01/04/2023 and I still think this is right.
     # np.argsort(params) returns ids in order from worst to best.
@@ -128,35 +150,18 @@ def quick():
         # len(data) # some amount, down from 598
     return all, ranks
 
-
 all, ranks = quick()
-
-# Get combined annotator ranks from choix by using all data available from all annotators
-combined_ranks = compute_ranks(all, 'Combined')
-ranks = pd.concat([ranks, combined_ranks], axis=0)
-ranks[ranks['user'] == 'Ranks_Combined'].sort_values('image_ids', ascending=True)
 
 Ranks = ranks.pivot(index=['image_ids'], columns=["user"], values='ranks').reset_index()
 Ranks = pd.merge(images, Ranks, left_on='app_image_id', right_on='image_ids')
 Ranks.columns
-header = ['app_image_id','image_name', 'Ranks_Combined', 'Ranks_Ittoop', 'Ranks_Alryalat', 'Ranks_Lazcano', 'Ranks_Malik', 'Ranks_Seibold']
-Ranks[header].sort_values('Ranks_Combined').to_csv(os.path.join(DATA_OUT,"choix_based_ranks.csv"), index=False)
-
-
-Ranks.head()
-I = Ranks[['image_ids', 'Ranks_Ittoop']]; I.sort_values('image_ids', inplace=True);
-A = Ranks[['image_ids', 'Ranks_Alryalat']]; A.sort_values('image_ids', inplace=True);
-M = Ranks[['image_ids', 'Ranks_Malik']]; M.sort_values('image_ids', inplace=True);
-L = Ranks[['image_ids', 'Ranks_Lazcano']]; L.sort_values('image_ids', inplace=True);
-S = Ranks[['image_ids', 'Ranks_Seibold']]; S.sort_values('image_ids', inplace=True);
-C = Ranks[['image_ids', 'Ranks_Combined']]; C.sort_values('image_ids', inplace=True);
-
+header = ['app_image_id','image_name', 'Ranks_Alryalat', 'Ranks_Ittoop', 'Ranks_Lazcano', 'Ranks_Malik', 'Ranks_Seibold', 'Ranks_Combined']
+Ranks[header].sort_values('app_image_id').to_csv(os.path.join(DATA_OUT,"choix_based_ranks.csv"), index=False)
 
 Annotators=[f'Ranks_{a}' for a in results.keys()] + ['Ranks_Combined']
 
 plots = [i for i in combinations(Annotators, 2)]
 len([i for i in combinations(Annotators, 2)])# 15
-
 
 def make_plot(X, Y):
     # pdb.set_trace()
