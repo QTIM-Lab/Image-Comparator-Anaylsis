@@ -7,22 +7,38 @@ from itertools import combinations, permutations
 import matplotlib.pyplot as plt # BB
 
 # Older (Dropbpx MGH)
-WKDIR='couchdb_results/Opthamology/RIM-ONE/compare_results_01_03_2023'
-# Linux Tower 1
-WKDIR="/projects/Image-Comparator-Analysis/raw_annotations/opthamology_rim-one/opthamology_rim-one_50_CompareList"
+# WKDIR='couchdb_results/Opthamology/RIM-ONE/compare_results_01_03_2023'
 
-DATA_OUT="/projects/Image-Comparator-Analysis/analysis"
+# Linux Tower 1
+WKDIR="/sddata/app_or_generated_data/Image-Comparator-Analysis/raw_annotations/opthamology_rim-one/opthamology_rim-one_50_CompareList"
+
+# Old
+# DATA_OUT="/projects/Image-Comparator-Analysis/analysis"
+
+# 01_24_2024
+DATA_OUT="/sddata/app_or_generated_data/Image-Comparator-Analysis/analysis/some_choix_and_elo_ranks_01_03_2023/some_tweaks_01_24_2024"
 
 # Dropbox again
 # images = pd.read_csv(os.path.join('couchdb_results/Opthamology/RIM-ONE/',"images.csv")) # get actual images if needed
 
 # Linux Tower 1
-images = pd.read_csv(os.path.join('/projects/Image-Comparator-Analysis/raw_annotations/opthamology_rim-one',"images_opthamology_rim-one_app_images_key.csv")) # get actual images if needed
+images = pd.read_csv(os.path.join("/sddata/app_or_generated_data/Image-Comparator-Analysis/raw_annotations/opthamology_rim-one/images_opthamology_rim-one_app_images_key.csv")) # get actual images if needed
 images.app_image_id.max() # 158
 images.app_image_id.min() # 1
 
 
-def make_data_pairs(row, min_id):
+# def make_data_pairs(row, min_id):
+def make_data_pairs(row):
+    """
+    In the past we used min_id to normalize data from couchdb.
+    Image sets are stacked on top of one another id-wise and so some arbitrary data set might start at id=65.
+    For id=65 we would have normally used 65 as min_id and subtract that from all ids.
+    This should make all data sets start at 0.
+
+    The problem is now we use fake ids and a whole func below (create_fake_ids) to do this with more sophistication 
+    and the result is that fake ids start at 1 not 0 and by the time this function is called,
+    we are passing fake ids into `row`. Therefore we cannot subtract anymore.
+    """
     # 1 - image0 won
     # 0 - image1 won
     # -1 - Equally Treatable
@@ -37,7 +53,7 @@ def make_data_pairs(row, min_id):
         left = 'tie'
         right = 'tie'
         return (left, right)
-    return (int(left)-min_id, int(right)-min_id)
+    return (int(left), int(right))
 
 
 results_Lazcano = pd.read_csv(os.path.join(WKDIR, "Lazcano_compare_results_01_03_2023.csv"))
@@ -72,9 +88,10 @@ def create_fake_ids(image_ids):
     image_ids = list(image_ids)
     image_ids = pd.DataFrame({"image_ids":image_ids}).sort_values("image_ids")
     image_ids.reset_index(inplace=True)
-    image_ids['fake_ids'] = image_ids.index + 1
+    image_ids['fake_ids'] = image_ids.index
     image_ids.drop(columns=['index'], inplace=True)
     return image_ids 
+
 
 
 temp_params = {'A': [], 'M': [],'I': [], 'L': [], 'C': []} # For debugging
@@ -97,16 +114,38 @@ def compute_ranks(df, name):
     # pdb.set_trace()
     fake_df[fake_df['winner'] == -1]
     # df[pd.isna(df['user'])]
-    pairs = fake_df[['image0_fake','image1_fake','winner']].rename(columns={'image0_fake':'image0','image1_fake':'image1'}).apply(lambda x: make_data_pairs(x, min_id), axis=1)
+    # pairs = fake_df[['image0_fake','image1_fake','winner']].rename(columns={'image0_fake':'image0','image1_fake':'image1'}).apply(lambda x: make_data_pairs(x, min_id), axis=1)
+    pairs = fake_df[['image0_fake','image1_fake','winner']].rename(columns={'image0_fake':'image0','image1_fake':'image1'}).apply(lambda x: make_data_pairs(x), axis=1)
     len([p for p in pairs if p[0] == 'tie'])
     # df.drop(columns='data_pairs', inplace=True)
     df['data_pairs'] = pairs.to_list()
-    
     # Make choix ranks
     n_items = len(image_ids)
+    ties = df[df['data_pairs'].str[0] == 'tie'] #
+    ties_duplicated = pd.DataFrame() # takes 647 and makes 1294
+    for index, row in ties.iterrows():
+        tie_first = row.copy()
+        tie_second = row.copy()
+        # pdb.set_trace()
+        image1 = int(fake_ids[fake_ids['image_ids'] == row['image1']]['fake_ids'])
+        image0 = int(fake_ids[fake_ids['image_ids'] == row['image0']]['fake_ids'])
+        tie_first.update(pd.Series({'winner': '0', 'data_pairs': (image1, image0)}))
+        tie_second.update(pd.Series({'winner': '1', 'data_pairs': (image0, image1)}))
+        tie_first_second = pd.DataFrame({'row1':tie_first, 'row2':tie_second}).T # Transpose
+        ties_duplicated = pd.concat((ties_duplicated, tie_first_second), axis=0)
     non_ties = df[df['data_pairs'].str[0] != 'tie'] # removes some ids so total count wont be 596
-    data = non_ties['data_pairs'].to_list()
+    errors = df[df['data_pairs'].str[0] != '0'] # removes some ids so total count wont be 596
+    ties_and_non_ties = pd.concat((ties_duplicated, non_ties), axis=0)
+    data = ties_and_non_ties['data_pairs'].to_list() # 1872
+    # data = non_ties['data_pairs'].to_list() # 578
     r_data = random.sample(data, len(data))
+    set([i[0] for i in r_data] + [i[1] for i in r_data])
+    # len(set([i[0] for i in r_data] + [i[1] for i in r_data]))
+    # set([i[0] for i in non_ties['data_pairs']])
+    # set([i[1] for i in non_ties['data_pairs']])
+    # set([i[0] for i in ties_duplicated['data_pairs']])
+    # set([i[1] for i in ties_duplicated['data_pairs']])
+    # pdb.set_trace()
     params = choix.ilsr_pairwise(n_items, r_data, alpha=0.01)
     ranks_low_to_high = np.argsort(params)+min_id
     ################################ Fill Temp Params ##########################################
@@ -134,7 +173,6 @@ def compute_ranks(df, name):
 
 
 # quick() # literally so I don't have to highlight it each time to test.
-
 def quick():
 # Get each annotators ranks from choix
     all = pd.DataFrame()
@@ -150,7 +188,11 @@ def quick():
         # len(data) # some amount, down from 598
     return all, ranks
 
+
 all, ranks = quick()
+
+all.columns
+all.head()
 
 Ranks = ranks.pivot(index=['image_ids'], columns=["user"], values='ranks').reset_index()
 Ranks = pd.merge(images, Ranks, left_on='app_image_id', right_on='image_ids')
