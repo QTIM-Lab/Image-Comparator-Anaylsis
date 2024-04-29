@@ -146,6 +146,7 @@ manually_decided_zooms = {
     "img_7":(1300, 2200,  2000, 1200), # (x_start, x_end, y_start, y_end)
 }
 
+
 def generate_all_image_views(image_generic='img_0'):
     # visualize the staple result
     fig, axes = plt.subplots(2, 2 + len(fin_tasks), figsize=(40, 6))
@@ -165,6 +166,8 @@ def generate_all_image_views(image_generic='img_0'):
             # Display segmentations from each rater
             axis.set_title(f"ann {i}")
             # axis.set_title(f"{segs[image_generic][i]['user']}")
+            axis.set_xticks([]) # Hide axes
+            axis.set_yticks([]) # Hide axes
             if row_index == 0:
                 axis.imshow(image_key[image_generic]['PIL_Image'])
                 # pdb.set_trace()
@@ -179,6 +182,8 @@ def generate_all_image_views(image_generic='img_0'):
                 axis.set_ylim(manually_decided_zooms[image_generic][2], manually_decided_zooms[image_generic][3])
         # Display STAPLE result
         row_of_axes[-1].set_title("STAPLE")
+        row_of_axes[-1].set_xticks([])
+        row_of_axes[-1].set_xticks([])
         if row_index == 0:
             row_of_axes[-1].imshow(image_key[image_generic]['PIL_Image'])
             row_of_axes[-1].imshow(STAPLEs[image_generic]["staple_mask"], cmap="Greens", interpolation="none", alpha=0.6)
@@ -191,6 +196,7 @@ def generate_all_image_views(image_generic='img_0'):
     plt.savefig(os.path.join(WORKING_DIR, "Stats", f"all_image_views_{image_generic}.png"), dpi = 300)
     # plt.show()
     # pdb.set_trace()
+
 
 
 
