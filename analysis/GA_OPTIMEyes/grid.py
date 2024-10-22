@@ -6,7 +6,7 @@ import pandas as pd
 from PIL import Image
 from matplotlib.colors import ListedColormap
 
-DATA = "/home/bearceb/mnt/QTIM/22-2198/GA_OPTIMEyes/Data"
+DATA = "/home/bearceb/mnt/QTIM/22-2198/GA_OPTIMEyes/Data/Annotations"
 STATS = "/home/bearceb/mnt/QTIM/22-2198/GA_OPTIMEyes/Stats"
 
 images_and_masks = pd.read_csv(os.path.join(DATA,"image_key.csv"))
@@ -14,6 +14,7 @@ images_and_masks.iloc[7]
 
 
 def load_image(index):
+    pdb.set_trace()
     image_path = images_and_masks.iloc[index]['image']
     mask_path = images_and_masks.iloc[index]['mask']
     image = Image.open(image_path)
@@ -25,7 +26,6 @@ def load_image(index):
     # np.unique(mask_np[:,:,2])
     # np.unique(mask_np[:,:,3])
     # Extract the grayscale data from the fourth channel
-    # pdb.set_trace()
     mask_np_data_r = mask_np[:, :, 0]
     mask_np_data_g = mask_np[:, :, 1]
     mask_np_data_b = mask_np[:, :, 3]
@@ -41,7 +41,7 @@ def load_image(index):
     # rgba_mask.shape
     return image_np, rgba_mask
 
-# load_image(7)
+load_image(7)
 
 
 # Create a grid of image/mask pairs
